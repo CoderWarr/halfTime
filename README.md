@@ -11,3 +11,5 @@ societies
 Current courses
 Future courses are publiczied 
 major 
+
+hey it bongani 
