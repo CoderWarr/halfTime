@@ -1,17 +1,17 @@
 import { resolveDisplayName } from './displayNameResolver'
 
-export const TAG_EMOJI = {
-  study: '📚',
-  sports: '🏀',
-  food: '🍔',
-  social: '🎉',
-  chill: '☕',
+// Map tags to subtle tailwind color classes for a small indicator dot
+export const TAG_COLOR = {
+  study: 'bg-blue-500',
+  sports: 'bg-green-500',
+  food: 'bg-orange-500',
+  social: 'bg-purple-500',
+  chill: 'bg-gray-500',
 }
 
 export function buildJoinMessage({ user, tag }) {
   const name = resolveDisplayName(user)
-  const emoji = TAG_EMOJI[tag] || '✨'
-  return { text: `${name} joined ${emoji}`, name, emoji }
+  return { text: `${name} joined`, name, tag }
 }
 
 export default buildJoinMessage

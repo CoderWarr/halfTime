@@ -75,7 +75,7 @@ export function ActivityCard({ activity, joined }) {
       else toast.error('Could not join. Try again.')
       return
     }
-    toast.success('Joined! See you there 👋')
+    toast.success('Joined! See you there')
   }
 
   async function handleLeave() {
@@ -130,7 +130,7 @@ export function ActivityCard({ activity, joined }) {
   } else if (isFull) {
     joinButton = (
       <Button variant="secondary" disabled>
-        Full 🔒
+        Full
       </Button>
     )
   } else if (isHost) {
@@ -167,7 +167,7 @@ export function ActivityCard({ activity, joined }) {
             disabled={cancelling}
             className="ml-2 text-xs text-gray-400 hover:text-red-600 disabled:opacity-50"
           >
-            ✕ Cancel
+            Cancel
           </button>
         )}
       </div>
@@ -175,7 +175,7 @@ export function ActivityCard({ activity, joined }) {
       <h3 className="mt-2 text-lg font-semibold text-gray-900">{activity.title}</h3>
       <div className="mt-0.5 flex items-center gap-2 text-sm text-gray-500">
         <p className="flex items-center gap-2">
-          <span className="mr-1">📍</span>
+          <span className="mr-1 text-gray-400">Location</span>
           <span>{displayLocation}</span>
         </p>
         <MapActionButtons location={activity} />

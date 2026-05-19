@@ -127,7 +127,7 @@ export function CreateActivityModal({ onClose, onSuccess }) {
       setFormError(error.message ?? 'Could not post activity.')
       return
     }
-    toast.success('Activity posted! 🎉')
+    toast.success('Activity posted!')
     onSuccess?.()
   }
 
@@ -163,10 +163,10 @@ export function CreateActivityModal({ onClose, onSuccess }) {
     return left.label.localeCompare(right.label)
   })
 
-  const locationOptions = useMemo(() => ([
+    const locationOptions = useMemo(() => ([
     {
       value: CURRENT_LOCATION_VALUE,
-      label: '📍 Use my current location',
+      label: 'Use my current location',
       kind: 'current',
       isSelected: selectedLocation?.value === CURRENT_LOCATION_VALUE,
       status: currentLocationStatus,
@@ -419,7 +419,12 @@ export function CreateActivityModal({ onClose, onSuccess }) {
                             : 'bg-indigo-50 text-indigo-900 hover:bg-indigo-100'
                       } ${currentLocationStatus === 'loading' ? 'cursor-wait opacity-80' : ''}`}
                     >
-                      <span className="mt-0.5 text-base leading-none">📍</span>
+                      <span className="mt-0.5 text-base leading-none">
+                        <svg className="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                          <circle cx="12" cy="9" r="2.2" fill="currentColor" />
+                        </svg>
+                      </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2 font-medium">
                           <span>{currentLocationStatus === 'loading' ? 'Locating...' : 'Use my current location'}</span>

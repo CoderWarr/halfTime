@@ -58,12 +58,12 @@ export function useJoinNotifications() {
             if (activity.is_cancelled) return
             if (new Date(activity.expires_at).getTime() <= Date.now()) return
 
-            // build display name & emoji, then show a small top-right toast
+            // build display name & tag, then show a small top-right toast
             const fakeUser = { id: j.user_id, user_metadata: j.user_metadata ?? {} }
-            const { name, emoji } = buildJoinMessage({ user: fakeUser, tag: activity.tag })
+            const { name, tag } = buildJoinMessage({ user: fakeUser, tag: activity.tag })
 
             hotToast.custom(
-              (t) => React.createElement(JoinToast, { name, emoji }),
+              (t) => React.createElement(JoinToast, { name, tag }),
               { duration: 4500, position: 'top-right' },
             )
           } catch (err) {
