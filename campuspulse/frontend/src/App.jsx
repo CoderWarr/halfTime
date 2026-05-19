@@ -6,6 +6,7 @@ import { useAuth } from './hooks/useAuth'
 import { Toaster } from './components/ui/Toast'
 import Auth from './pages/Auth'
 import Feed from './pages/Feed'
+import { useJoinNotifications } from './lib/social/useJoinNotifications'
 
 function FullScreenSpinner() {
   return (
@@ -25,6 +26,10 @@ function ProtectedRoute({ user, children }) {
 
 function App() {
   const { user, loading } = useAuth()
+
+  // Mount the join notifications hook once at app root so a single
+  // subscription broadcasts lightweight realtime toasts to viewers.
+  useJoinNotifications()
 
   if (loading) return <FullScreenSpinner />
 
