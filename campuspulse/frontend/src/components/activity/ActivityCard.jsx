@@ -37,7 +37,9 @@ export function ActivityCard({ activity, joined }) {
   const { user } = useAuth()
   const [countdown, setCountdown] = useState(() => formatTimeLeft(activity.expires_at))
   const [joining, setJoining] = useState(false)
+  const [leaving, setLeaving] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [hidden, setHidden] = useState(false)
 
   useEffect(() => {
     setCountdown(formatTimeLeft(activity.expires_at))
@@ -47,7 +49,7 @@ export function ActivityCard({ activity, joined }) {
     return () => clearInterval(id)
   }, [activity.expires_at])
 
-  if (countdown.expired) return null
+  if (countdown.expired || hidden) return null
 
   const tag = TAG_MAP[activity.tag]
   const isHost = user?.id === activity.created_by
@@ -72,34 +74,59 @@ export function ActivityCard({ activity, joined }) {
     toast.success('Joined! See you there 👋')
   }
 
+  async function handleLeave() {
+    if (!user) return
+    setLeaving(true)
+    const { error } = await supabase
+      .from('joins')
+      .delete()
+      .eq('activity_id', activity.id)
+      .eq('user_id', user.id)
+    setLeaving(false)
+
+    if (error) {
+      toast.error('Could not leave. Try again.')
+      return
+    }
+    toast.info('Left activity.')
+  }
+
   async function handleCancel() {
     if (!isHost) return
     if (!window.confirm('Cancel this activity?')) return
     setCancelling(true)
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('activities')
       .update({ is_cancelled: true })
       .eq('id', activity.id)
+      .select()
     setCancelling(false)
 
-    if (error) {
+    if (error || !data || data.length === 0) {
       toast.error('Could not cancel. Try again.')
       return
     }
+    setHidden(true)
     toast.info('Activity cancelled.')
   }
 
   let joinButton
-  if (isFull) {
+  if (joined && isHost) {
     joinButton = (
-      <Button variant="secondary" disabled>
-        Full 🔒
+      <Button variant="secondary" disabled className="text-green-600">
+        Joined ✓
       </Button>
     )
   } else if (joined) {
     joinButton = (
-      <Button variant="secondary" disabled className="text-green-600">
-        Joined ✓
+      <Button variant="secondary" onClick={handleLeave} loading={leaving} className="text-green-700 border border-green-600">
+        Leave
+      </Button>
+    )
+  } else if (isFull) {
+    joinButton = (
+      <Button variant="secondary" disabled>
+        Full 🔒
       </Button>
     )
   } else {

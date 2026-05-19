@@ -68,9 +68,15 @@ export function useActivities() {
           if (payload.eventType === 'INSERT') {
             setActivities((prev) => [payload.new, ...prev])
           } else if (payload.eventType === 'UPDATE') {
-            setActivities((prev) =>
-              prev.map((a) => (a.id === payload.new.id ? payload.new : a)),
-            )
+            // Drop the row from the feed once it's cancelled — the SELECT
+            // policy hides it from a refetch anyway, so we mirror that locally.
+            if (payload.new?.is_cancelled) {
+              setActivities((prev) => prev.filter((a) => a.id !== payload.new.id))
+            } else {
+              setActivities((prev) =>
+                prev.map((a) => (a.id === payload.new.id ? payload.new : a)),
+              )
+            }
           } else if (payload.eventType === 'DELETE') {
             setActivities((prev) => prev.filter((a) => a.id !== payload.old.id))
           }
@@ -82,14 +88,27 @@ export function useActivities() {
       .channel('joins-feed')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'joins' },
+        { event: '*', schema: 'public', table: 'joins' },
         (payload) => {
-          if (user && payload.new?.user_id === user.id) {
+          if (!user) return
+          if (payload.eventType === 'INSERT' && payload.new?.user_id === user.id) {
             setJoinedActivityIds((prev) => {
               const next = new Set(prev)
               next.add(payload.new.activity_id)
               return next
             })
+          } else if (payload.eventType === 'DELETE') {
+            // DELETE payloads only include primary keys unless REPLICA IDENTITY FULL
+            // is set, so user_id may be missing. Refetch the current user's joins
+            // to stay in sync when any join row is removed.
+            supabase
+              .from('joins')
+              .select('activity_id')
+              .eq('user_id', user.id)
+              .then(({ data }) => {
+                if (cancelled) return
+                setJoinedActivityIds(new Set((data ?? []).map((j) => j.activity_id)))
+              })
           }
         },
       )
