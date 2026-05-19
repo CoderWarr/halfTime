@@ -1,3 +1,44 @@
+# CampusPulse ⚡
+ 
+> The real-time social layer for UNSW campus.
+ 
+---
+ 
+## What is it?
+ 
+CampusPulse lets UNSW students discover and join spontaneous activities happening on campus **right now** — not tomorrow, not next week. Right now.
+ 
+Open the app when you have a free gap. See what's happening around you. Join in one tap.
+ 
+---
+ 
+## The Problem
+ 
+Students are constantly on campus, but spontaneous plans fall apart because there's no way to discover them. Someone needs two more for basketball at Village Green. Five people want to grab lunch after the same lecture. A study group is forming at the library. None of them know about each other.
+ 
+CampusPulse is the missing signal.
+ 
+---
+ 
+## How It Works
+ 
+1. **Post** an activity in under 10 seconds — title, tag, location, spots needed, and when it expires
+2. **Browse** the live feed to see what's happening around campus right now
+3. **Join** with one tap — the spot counter updates instantly for everyone
+Posts expire automatically. No stale content, no event planning, no commitment until you want it.
+ 
+---
+ 
+## Features
+ 
+- 🔴 **Live feed** — real-time updates, no refresh needed
+- ⏱ **Auto-expiry** — posts disappear when time is up or spots fill
+- 🏷 **Tags** — Study, Sports, Food, Social, Chill
+- 📍 **Campus locations** — real UNSW landmarks
+- 🚪 **Spot counter** — see how many people have joined and how many spots are left
+- 🏫 **Room suggestions** — study activities suggest available rooms 
+
+
 # CampusPulse — Task Iterations
 
 > Each stage is broken into atomic subtasks with a clear definition of done.
