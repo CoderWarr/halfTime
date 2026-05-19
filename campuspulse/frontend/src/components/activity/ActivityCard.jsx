@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { TAG_MAP } from '../../constants/tags'
+import MapActionButtons from './MapActionButtons'
 import { Button } from '../ui/Button'
 import { toast } from '../ui/Toast'
 
@@ -169,10 +170,13 @@ export function ActivityCard({ activity, joined }) {
       </div>
 
       <h3 className="mt-2 text-lg font-semibold text-gray-900">{activity.title}</h3>
-      <p className="mt-0.5 text-sm text-gray-500">
-        <span className="mr-1">📍</span>
-        {activity.location_label}
-      </p>
+      <div className="mt-0.5 flex items-center gap-2 text-sm text-gray-500">
+        <p className="flex items-center gap-2">
+          <span className="mr-1">📍</span>
+          <span>{activity.location_label}</span>
+        </p>
+        <MapActionButtons locationLabel={activity.location_label} />
+      </div>
 
       <div className="mt-3">
         <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
