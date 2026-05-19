@@ -2,18 +2,38 @@ import { useEffect, useMemo, useState } from 'react'
 import { useDevSocBuildings } from './useDevSocBuildings'
 import { generateMapUrl, generateDirectionsUrl } from '../lib/maps/mapLinkGenerator'
 import { resolveLocation } from '../lib/maps/locationResolver'
+import { decodeDynamicLocationLabel } from '../lib/maps/currentLocation'
 
-export function useMapLocation(locationLabel) {
+export function useMapLocation(location) {
   const { buildings } = useDevSocBuildings()
   const [meta, setMeta] = useState({ loading: true })
+
+  const locationLabel = typeof location === 'string' ? location : location?.location_label || location?.label || ''
+  const dynamicLocation = decodeDynamicLocationLabel(locationLabel)
+  const latitude = typeof location === 'string' ? dynamicLocation.latitude : location?.latitude ?? location?.location_latitude ?? dynamicLocation.latitude ?? null
+  const longitude = typeof location === 'string' ? dynamicLocation.longitude : location?.longitude ?? location?.location_longitude ?? dynamicLocation.longitude ?? null
+  const mapUrlFromData = typeof location === 'string' ? null : location?.map_url || location?.mapUrl || null
 
   const resolved = useMemo(() => resolveLocation(locationLabel, buildings), [locationLabel, buildings])
 
   useEffect(() => {
     let cancelled = false
     async function build() {
-      if (!locationLabel) {
+      if (!locationLabel && !mapUrlFromData && latitude == null && longitude == null) {
         if (!cancelled) setMeta({ loading: false })
+        return
+      }
+
+      if (latitude != null && longitude != null) {
+        const mapUrl = mapUrlFromData || generateMapUrl({ lat: latitude, lng: longitude })
+        const directionsUrl = generateDirectionsUrl({ lat: latitude, lng: longitude })
+        if (!cancelled) setMeta({ loading: false, mapUrl, directionsUrl, buildingName: locationLabel })
+        return
+      }
+
+      if (mapUrlFromData) {
+        const directionsUrl = generateDirectionsUrl({ query: locationLabel })
+        if (!cancelled) setMeta({ loading: false, mapUrl: mapUrlFromData, directionsUrl, buildingName: locationLabel })
         return
       }
 
@@ -34,7 +54,7 @@ export function useMapLocation(locationLabel) {
 
     build()
     return () => { cancelled = true }
-  }, [locationLabel, resolved])
+  }, [locationLabel, latitude, longitude, mapUrlFromData, resolved])
 
   return meta
 }

@@ -3,7 +3,7 @@
  * and the Supabase insert. Renders RoomSuggestion for study activities.
  * Closes on backdrop click, the × button, or the Escape key.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useDevSocBuildings } from '../../hooks/useDevSocBuildings'
@@ -12,6 +12,13 @@ import {
   CAMPUS_LOCATIONS,
   MANUAL_CAMPUS_LOCATIONS,
 } from '../../constants/locations'
+import { generateMapUrl } from '../../lib/maps/mapLinkGenerator'
+import {
+  CURRENT_LOCATION_VALUE,
+  encodeDynamicLocationLabel,
+  getCurrentPosition,
+  reverseGeocodeCoordinates,
+} from '../../lib/maps/currentLocation'
 import { Button } from '../ui/Button'
 import { toast } from '../ui/Toast'
 import { RoomSuggestion } from './RoomSuggestion'
@@ -56,31 +63,39 @@ export function CreateActivityModal({ onClose, onSuccess }) {
   const [title, setTitle] = useState('')
   const [tag, setTag] = useState('')
   const [locationSearch, setLocationSearch] = useState('')
-  const [location, setLocation] = useState('')
+  const [selectedLocation, setSelectedLocation] = useState(null)
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const containerRef = useRef(null)
   const inputRef = useRef(null)
+  const mountedRef = useRef(true)
   const [spots, setSpots] = useState(4)
   const [expiryMs, setExpiryMs] = useState(EXPIRY_OPTIONS[1].ms)
+  const [currentLocationStatus, setCurrentLocationStatus] = useState('idle')
+  const [currentLocationError, setCurrentLocationError] = useState('')
+  const [currentLocationPreview, setCurrentLocationPreview] = useState('')
 
   const [errors, setErrors] = useState({})
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    mountedRef.current = true
     function onKey(e) {
       if (e.key === 'Escape') onClose?.()
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      mountedRef.current = false
+      window.removeEventListener('keydown', onKey)
+    }
   }, [onClose])
 
   function validate() {
     const next = {}
     if (!title.trim()) next.title = 'Title is required.'
     if (!tag) next.tag = 'Pick a tag.'
-    if (!location) next.location = 'Pick a location.'
+    if (!selectedLocation) next.location = 'Pick a location.'
     if (!spots || spots < MIN_SPOTS) next.spots = `At least ${MIN_SPOTS} spot.`
     if (!expiryMs) next.expiry = 'Pick an expiry.'
     setErrors(next)
@@ -97,10 +112,11 @@ export function CreateActivityModal({ onClose, onSuccess }) {
     }
 
     setSubmitting(true)
+    const locationPayload = selectedLocation ?? {}
     const { error } = await supabase.from('activities').insert({
       title: title.trim(),
       tag,
-      location_label: location,
+      location_label: locationPayload.storageLabel || locationPayload.label || locationSearch.trim(),
       spots_total: spots,
       expires_at: new Date(Date.now() + expiryMs).toISOString(),
       created_by: user.id,
@@ -134,8 +150,7 @@ export function CreateActivityModal({ onClose, onSuccess }) {
     label: loc,
   }))
 
-  const locationOptions = [...liveBuildingOptions, ...manualLocationOptions]
-  const filteredLocationOptions = locationOptions.filter((option) =>
+  const filteredLocationOptions = [...liveBuildingOptions, ...manualLocationOptions].filter((option) =>
     `${option.label} ${option.value}`.toLowerCase().includes(locationSearch.trim().toLowerCase()),
   )
   const sortedLocationOptions = [...filteredLocationOptions].sort((left, right) => {
@@ -148,15 +163,87 @@ export function CreateActivityModal({ onClose, onSuccess }) {
     return left.label.localeCompare(right.label)
   })
 
+  const locationOptions = useMemo(() => ([
+    {
+      value: CURRENT_LOCATION_VALUE,
+      label: '📍 Use my current location',
+      kind: 'current',
+      isSelected: selectedLocation?.value === CURRENT_LOCATION_VALUE,
+      status: currentLocationStatus,
+      error: currentLocationError,
+      preview: currentLocationPreview,
+    },
+    ...sortedLocationOptions.map((option) => ({
+      ...option,
+      kind: 'regular',
+      isSelected: selectedLocation?.value === option.value,
+    })),
+  ]), [currentLocationError, currentLocationPreview, currentLocationStatus, selectedLocation?.value, sortedLocationOptions])
+
   // Helpers for keyboard navigation and scrolling
   function openAndHighlightInitial() {
     setIsOpen(true)
     const query = locationSearch.trim().toLowerCase()
-    const firstMatch = sortedLocationOptions.findIndex((opt) =>
-      opt.label.toLowerCase().startsWith(query) || opt.value.toLowerCase().startsWith(query),
+    if (!query) {
+      setActiveIndex(locationOptions.length > 0 ? 0 : -1)
+      return
+    }
+
+    const firstMatch = locationOptions.findIndex((opt, idx) =>
+      idx > 0 && (opt.label.toLowerCase().startsWith(query) || opt.value.toLowerCase().startsWith(query)),
     )
     if (firstMatch !== -1) setActiveIndex(firstMatch)
-    else setActiveIndex(sortedLocationOptions.length > 0 ? 0 : -1)
+    else setActiveIndex(locationOptions.length > 0 ? 0 : -1)
+  }
+
+  async function selectCurrentLocation() {
+    if (currentLocationStatus === 'loading') return
+
+    setCurrentLocationError('')
+    setCurrentLocationStatus('loading')
+
+    try {
+      const position = await getCurrentPosition()
+      const latitude = position.coords.latitude
+      const longitude = position.coords.longitude
+      const readableLabel = (await reverseGeocodeCoordinates(latitude, longitude)) || 'Current location'
+      const mapUrl = generateMapUrl({ lat: latitude, lng: longitude })
+
+      if (!mountedRef.current) return
+
+      const nextLocation = {
+        value: CURRENT_LOCATION_VALUE,
+        label: readableLabel,
+        storageLabel: encodeDynamicLocationLabel(readableLabel, latitude, longitude),
+        latitude,
+        longitude,
+        mapUrl,
+        isDynamicLocation: true,
+      }
+
+      setSelectedLocation(nextLocation)
+      setLocationSearch(readableLabel)
+      setCurrentLocationPreview(readableLabel)
+      setCurrentLocationStatus('ready')
+      setIsOpen(false)
+      setActiveIndex(-1)
+      inputRef.current?.focus()
+    } catch (error) {
+      if (!mountedRef.current) return
+
+      const message = error?.code === error?.PERMISSION_DENIED
+        ? 'Location permission denied. Enable access to use your current location.'
+        : error?.code === error?.POSITION_UNAVAILABLE
+          ? 'Could not determine your current location.'
+          : error?.code === error?.TIMEOUT
+            ? 'Location lookup timed out. Try again.'
+            : error?.message || 'Could not get your current location.'
+
+      setCurrentLocationError(message)
+      setCurrentLocationStatus('error')
+      setIsOpen(true)
+      setActiveIndex(0)
+    }
   }
 
   useEffect(() => {
@@ -164,7 +251,7 @@ export function CreateActivityModal({ onClose, onSuccess }) {
     const list = containerRef.current?.querySelector('[data-locations-list]')
     const item = list?.querySelector(`[data-option-index="${activeIndex}"]`)
     if (item) item.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-  }, [activeIndex, sortedLocationOptions])
+  }, [activeIndex, locationOptions])
 
   useEffect(() => {
     function onDocMouse(e) {
@@ -252,6 +339,9 @@ export function CreateActivityModal({ onClose, onSuccess }) {
                   value={locationSearch}
                   onChange={(e) => {
                     setLocationSearch(e.target.value)
+                    setSelectedLocation(null)
+                    setCurrentLocationError('')
+                    if (currentLocationStatus === 'error') setCurrentLocationStatus('idle')
                     // open dropdown when user types
                     setIsOpen(true)
                     setActiveIndex(-1)
@@ -270,25 +360,31 @@ export function CreateActivityModal({ onClose, onSuccess }) {
                       if (!isOpen) return openAndHighlightInitial()
                       setActiveIndex((i) => {
                         const next = i + 1
-                        return next >= sortedLocationOptions.length ? 0 : next
+                        return next >= locationOptions.length ? 0 : next
                       })
                     } else if (e.key === 'ArrowUp') {
                       e.preventDefault()
                       if (!isOpen) return openAndHighlightInitial()
                       setActiveIndex((i) => {
                         const next = i - 1
-                        return next < 0 ? sortedLocationOptions.length - 1 : next
+                        return next < 0 ? locationOptions.length - 1 : next
                       })
                     } else if (e.key === 'Enter') {
                       if (isOpen && activeIndex >= 0) {
                         e.preventDefault()
-                        const opt = sortedLocationOptions[activeIndex]
+                        const opt = locationOptions[activeIndex]
                         if (opt) {
-                          setLocation(opt.value)
-                          setLocationSearch(opt.label)
-                          setIsOpen(false)
-                          setActiveIndex(-1)
-                          inputRef.current?.focus()
+                          if (opt.kind === 'current') {
+                            void selectCurrentLocation()
+                          } else {
+                            setSelectedLocation({ value: opt.value, label: opt.label, storageLabel: opt.label })
+                            setLocationSearch(opt.label)
+                            setCurrentLocationError('')
+                            setCurrentLocationStatus('idle')
+                            setIsOpen(false)
+                            setActiveIndex(-1)
+                            inputRef.current?.focus()
+                          }
                         }
                       }
                     } else if (e.key === 'Escape') {
@@ -308,21 +404,73 @@ export function CreateActivityModal({ onClose, onSuccess }) {
               {isOpen && (
                 <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 rounded-xl border border-gray-200 bg-white shadow-2xl shadow-gray-900/10">
                   <div className="max-h-52 overflow-y-auto p-1" data-locations-list role="listbox" id="location-listbox">
+                    <button
+                      type="button"
+                      data-option-index={0}
+                      role="option"
+                      aria-selected={locationOptions[0]?.isSelected ?? false}
+                      disabled={currentLocationStatus === 'loading'}
+                      onClick={() => void selectCurrentLocation()}
+                      className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${
+                        locationOptions[0]?.isSelected
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : currentLocationStatus === 'error'
+                            ? 'border border-red-200 bg-red-50 text-red-900 hover:bg-red-100'
+                            : 'bg-indigo-50 text-indigo-900 hover:bg-indigo-100'
+                      } ${currentLocationStatus === 'loading' ? 'cursor-wait opacity-80' : ''}`}
+                    >
+                      <span className="mt-0.5 text-base leading-none">📍</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2 font-medium">
+                          <span>{currentLocationStatus === 'loading' ? 'Locating...' : 'Use my current location'}</span>
+                          {locationOptions[0]?.isSelected && (
+                            <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                              Selected
+                            </span>
+                          )}
+                        </span>
+                        {currentLocationStatus === 'loading' ? (
+                          <span className="mt-1 flex items-center gap-2 text-xs opacity-80">
+                            <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-r-transparent" />
+                            Requesting location permission...
+                          </span>
+                        ) : currentLocationStatus === 'error' ? (
+                          <span className="mt-1 block text-xs leading-5">
+                            {currentLocationError}
+                            <span className="ml-1 font-medium underline">Retry</span>
+                          </span>
+                        ) : currentLocationPreview ? (
+                          <span className={`mt-1 block text-xs ${locationOptions[0]?.isSelected ? 'text-white/80' : 'text-indigo-700'}`}>
+                            {currentLocationPreview}
+                          </span>
+                        ) : (
+                          <span className={`mt-1 block text-xs ${locationOptions[0]?.isSelected ? 'text-white/80' : 'text-indigo-700'}`}>
+                            Uses your browser location and opens exact map links.
+                          </span>
+                        )}
+                      </span>
+                    </button>
+
+                    <div className="my-1 h-px bg-gray-100" />
+
                     {loadingBuildings && !buildingsError ? (
                       <div className="rounded-lg px-3 py-2 text-sm text-gray-500">Loading live campus locations...</div>
                     ) : sortedLocationOptions.length > 0 ? (
                       sortedLocationOptions.map((option, idx) => {
-                        const active = activeIndex === idx || location === option.value
+                        const optionIndex = idx + 1
+                        const active = activeIndex === optionIndex || selectedLocation?.value === option.value
                         return (
                           <button
                             key={option.value}
                             type="button"
-                            data-option-index={idx}
+                            data-option-index={optionIndex}
                             role="option"
                             aria-selected={active}
                             onClick={() => {
-                              setLocation(option.value)
+                              setSelectedLocation({ value: option.value, label: option.label, storageLabel: option.label })
                               setLocationSearch(option.label)
+                              setCurrentLocationError('')
+                              setCurrentLocationStatus('idle')
                               setIsOpen(false)
                               setActiveIndex(-1)
                               inputRef.current?.focus()
@@ -332,7 +480,7 @@ export function CreateActivityModal({ onClose, onSuccess }) {
                             }`}
                           >
                             <span className="min-w-0 flex-1 break-words">{highlightMatch(option.label, locationSearch)}</span>
-                            {location === option.value && <span className="text-xs font-medium">Selected</span>}
+                            {selectedLocation?.value === option.value && <span className="text-xs font-medium">Selected</span>}
                           </button>
                         )
                       })
@@ -348,10 +496,12 @@ export function CreateActivityModal({ onClose, onSuccess }) {
               <div className="mt-2">
                 <RoomSuggestion
                   spots={spots}
-                  selectedLocation={location}
+                  selectedLocation={selectedLocation?.label || ''}
                   onSelectLocation={(val) => {
-                    setLocation(val)
+                    setSelectedLocation({ value: val, label: val, storageLabel: val })
                     setLocationSearch(val)
+                    setCurrentLocationError('')
+                    setCurrentLocationStatus('idle')
                     setIsOpen(false)
                     setActiveIndex(-1)
                   }}

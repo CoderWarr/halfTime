@@ -3,13 +3,14 @@
  * expiry countdown, and the join/full/joined button. Hosts also see a
  * cancel control. Returns null once the activity has expired.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { TAG_MAP } from '../../constants/tags'
 import MapActionButtons from './MapActionButtons'
 import { Button } from '../ui/Button'
 import { toast } from '../ui/Toast'
+import { decodeDynamicLocationLabel } from '../../lib/maps/currentLocation'
 
 const TAG_FILL_COLORS = {
   study: 'bg-blue-500',
@@ -19,8 +20,8 @@ const TAG_FILL_COLORS = {
   chill: 'bg-gray-500',
 }
 
-function formatTimeLeft(expiresAt) {
-  const diffMs = new Date(expiresAt) - new Date()
+function formatTimeLeft(expiresAt, now = Date.now()) {
+  const diffMs = new Date(expiresAt) - new Date(now)
   const diffMin = Math.floor(diffMs / 60000)
   if (diffMin <= 0) return { text: '', expired: true, urgent: false }
   if (diffMin > 60) {
@@ -36,16 +37,17 @@ function formatTimeLeft(expiresAt) {
 
 export function ActivityCard({ activity, joined }) {
   const { user } = useAuth()
-  const [countdown, setCountdown] = useState(() => formatTimeLeft(activity.expires_at))
+  const [now, setNow] = useState(() => Date.now())
   const [joining, setJoining] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [hidden, setHidden] = useState(false)
 
+  const countdown = useMemo(() => formatTimeLeft(activity.expires_at, now), [activity.expires_at, now])
+
   useEffect(() => {
-    setCountdown(formatTimeLeft(activity.expires_at))
     const id = setInterval(() => {
-      setCountdown(formatTimeLeft(activity.expires_at))
+      setNow(Date.now())
     }, 30000)
     return () => clearInterval(id)
   }, [activity.expires_at])
@@ -56,6 +58,7 @@ export function ActivityCard({ activity, joined }) {
   const isHost = user?.id === activity.created_by
   const isFull = activity.spots_joined >= activity.spots_total
   const percent = Math.min(100, Math.round((activity.spots_joined / activity.spots_total) * 100))
+  const displayLocation = decodeDynamicLocationLabel(activity.location_label).displayLabel || activity.location_label
 
   async function handleJoin() {
     if (!user) return
@@ -173,9 +176,9 @@ export function ActivityCard({ activity, joined }) {
       <div className="mt-0.5 flex items-center gap-2 text-sm text-gray-500">
         <p className="flex items-center gap-2">
           <span className="mr-1">📍</span>
-          <span>{activity.location_label}</span>
+          <span>{displayLocation}</span>
         </p>
-        <MapActionButtons locationLabel={activity.location_label} />
+        <MapActionButtons location={activity} />
       </div>
 
       <div className="mt-3">
