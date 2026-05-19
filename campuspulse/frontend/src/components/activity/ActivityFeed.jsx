@@ -38,7 +38,6 @@ export function ActivityFeed({ activeTag }) {
   if (filtered.length === 0) {
     return (
       <div className="mt-16 text-center text-gray-400">
-        <p className="text-4xl">👀</p>
         <p className="mt-2 font-medium">Nothing happening right now.</p>
         <p className="text-sm">Be the first to post something!</p>
       </div>

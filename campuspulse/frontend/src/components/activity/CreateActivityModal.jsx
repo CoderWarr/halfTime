@@ -78,7 +78,7 @@ export function CreateActivityModal({ onClose, onSuccess }) {
       setFormError(error.message ?? 'Could not post activity.')
       return
     }
-    toast.success('Activity posted! 🎉')
+    toast.success('Activity posted!')
     onSuccess?.()
   }
 
