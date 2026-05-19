@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-const UNSW_EMAIL_PATTERN = /@(student\.)?unsw\.edu\.au$/i
+const UNSW_EMAIL_PATTERN = /@ad\.unsw\.edu\.au$/i
 
 export function useAuth() {
   const [user, setUser] = useState(null)
@@ -44,7 +44,7 @@ export function useAuth() {
 
   async function signUp(email, password) {
     if (!UNSW_EMAIL_PATTERN.test(email)) {
-      throw new Error('Please use a UNSW email address (@student.unsw.edu.au or @unsw.edu.au).')
+      throw new Error('Please use your UNSW email address (@ad.unsw.edu.au).')
     }
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error

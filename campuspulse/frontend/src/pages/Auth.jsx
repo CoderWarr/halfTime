@@ -97,7 +97,7 @@ export default function Auth() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="z1234567@student.unsw.edu.au"
+              placeholder="z1234567@ad.unsw.edu.au"
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             {emailError && (
