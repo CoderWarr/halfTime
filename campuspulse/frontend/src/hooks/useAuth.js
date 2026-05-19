@@ -47,6 +47,7 @@ export function useAuth() {
   async function signUp(email, password) {
     if (!UNSW_EMAIL_PATTERN.test(email)) {
       throw new Error('Please use your UNSW email address (@ad.unsw.edu.au).')
+    }
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
     return data
@@ -59,4 +60,4 @@ export function useAuth() {
 
   return { user, loading, signIn, signUp, signOut }
 }
-}
+
