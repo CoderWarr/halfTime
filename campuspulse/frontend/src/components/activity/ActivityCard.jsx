@@ -119,7 +119,7 @@ export function ActivityCard({ activity, joined }) {
     )
   } else if (joined) {
     joinButton = (
-      <Button variant="secondary" onClick={handleLeave} loading={leaving} className="text-green-700 border border-green-600">
+      <Button variant="secondary" onClick={handleLeave} loading={leaving} className="text-red-600 border border-red-500 hover:bg-red-50">
         Leave
       </Button>
     )
@@ -127,6 +127,12 @@ export function ActivityCard({ activity, joined }) {
     joinButton = (
       <Button variant="secondary" disabled>
         Full 🔒
+      </Button>
+    )
+  } else if (isHost) {
+    joinButton = (
+      <Button variant="secondary" disabled>
+        Your activity
       </Button>
     )
   } else {
