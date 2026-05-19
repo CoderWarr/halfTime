@@ -110,7 +110,7 @@ export function CreateActivityModal({ onClose, onSuccess }) {
           Post an activity
         </h2>
         <p className="mt-1 text-sm text-gray-500">
-          Tell campus what you're doing right now.
+          Tell campus what you're doing right now
         </p>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-5" noValidate>

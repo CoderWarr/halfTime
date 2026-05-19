@@ -71,7 +71,7 @@ export function ActivityCard({ activity, joined }) {
       else toast.error('Could not join. Try again.')
       return
     }
-    toast.success('Joined! See you there 👋')
+    toast.success('Joined! See you there')
   }
 
   async function handleLeave() {
@@ -126,7 +126,7 @@ export function ActivityCard({ activity, joined }) {
   } else if (isFull) {
     joinButton = (
       <Button variant="secondary" disabled>
-        Full 🔒
+        Full 
       </Button>
     )
   } else if (isHost) {
