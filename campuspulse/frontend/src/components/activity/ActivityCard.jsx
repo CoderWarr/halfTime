@@ -3,12 +3,15 @@
  * expiry countdown, and the join/full/joined button. Hosts also see a
  * cancel control. Returns null once the activity has expired.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { TAG_MAP } from '../../constants/tags'
+import MapActionButtons from './MapActionButtons'
 import { Button } from '../ui/Button'
 import { toast } from '../ui/Toast'
+import { decodeDynamicLocationLabel } from '../../lib/maps/currentLocation'
+import { CardFlashEffect } from './CardFlashEffect'
 
 const TAG_FILL_COLORS = {
   study: 'bg-blue-500',
@@ -18,8 +21,8 @@ const TAG_FILL_COLORS = {
   chill: 'bg-gray-500',
 }
 
-function formatTimeLeft(expiresAt) {
-  const diffMs = new Date(expiresAt) - new Date()
+function formatTimeLeft(expiresAt, now = Date.now()) {
+  const diffMs = new Date(expiresAt) - new Date(now)
   const diffMin = Math.floor(diffMs / 60000)
   if (diffMin <= 0) return { text: '', expired: true, urgent: false }
   if (diffMin > 60) {
@@ -33,18 +36,19 @@ function formatTimeLeft(expiresAt) {
   return { text: `Expires in ${diffMin} min`, expired: false, urgent: true }
 }
 
-export function ActivityCard({ activity, joined }) {
+export function ActivityCard({ activity, joined, justFilled = false }) {
   const { user } = useAuth()
-  const [countdown, setCountdown] = useState(() => formatTimeLeft(activity.expires_at))
+  const [now, setNow] = useState(() => Date.now())
   const [joining, setJoining] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [hidden, setHidden] = useState(false)
 
+  const countdown = useMemo(() => formatTimeLeft(activity.expires_at, now), [activity.expires_at, now])
+
   useEffect(() => {
-    setCountdown(formatTimeLeft(activity.expires_at))
     const id = setInterval(() => {
-      setCountdown(formatTimeLeft(activity.expires_at))
+      setNow(Date.now())
     }, 30000)
     return () => clearInterval(id)
   }, [activity.expires_at])
@@ -55,6 +59,7 @@ export function ActivityCard({ activity, joined }) {
   const isHost = user?.id === activity.created_by
   const isFull = activity.spots_joined >= activity.spots_total
   const percent = Math.min(100, Math.round((activity.spots_joined / activity.spots_total) * 100))
+  const displayLocation = decodeDynamicLocationLabel(activity.location_label).displayLabel || activity.location_label
 
   async function handleJoin() {
     if (!user) return
@@ -71,7 +76,7 @@ export function ActivityCard({ activity, joined }) {
       else toast.error('Could not join. Try again.')
       return
     }
-    toast.success('Joined! See you there 👋')
+    toast.success('Joined! See you there')
   }
 
   async function handleLeave() {
@@ -111,7 +116,17 @@ export function ActivityCard({ activity, joined }) {
   }
 
   let joinButton
-  if (joined && isHost) {
+  if (isFull && !joined) {
+    joinButton = (
+      <Button
+        variant="secondary"
+        disabled
+        className="border-emerald-200 bg-emerald-50 text-emerald-700 opacity-100"
+      >
+        Full
+      </Button>
+    )
+  } else if (joined && isHost) {
     joinButton = (
       <Button variant="secondary" disabled className="text-green-600">
         Joined ✓
@@ -119,14 +134,13 @@ export function ActivityCard({ activity, joined }) {
     )
   } else if (joined) {
     joinButton = (
-      <Button variant="secondary" onClick={handleLeave} loading={leaving} className="text-red-600 border border-red-500 hover:bg-red-50">
+      <Button
+        variant="secondary"
+        onClick={handleLeave}
+        loading={leaving}
+        className="border border-red-500 text-red-600 hover:bg-red-50"
+      >
         Leave
-      </Button>
-    )
-  } else if (isFull) {
-    joinButton = (
-      <Button variant="secondary" disabled>
-        Full 🔒
       </Button>
     )
   } else if (isHost) {
@@ -144,49 +158,63 @@ export function ActivityCard({ activity, joined }) {
   }
 
   return (
-    <article className="w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-2">
-        <span
-          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tag?.pill ?? 'bg-gray-100 text-gray-700'}`}
-        >
-          {tag?.label ?? activity.tag}
-        </span>
-        <span
-          className={`ml-auto text-xs ${countdown.urgent ? 'text-red-500 font-medium' : 'text-gray-500'}`}
-        >
-          {countdown.text}
-        </span>
-        {isHost && (
-          <button
-            type="button"
-            onClick={handleCancel}
-            disabled={cancelling}
-            className="ml-2 text-xs text-gray-400 hover:text-red-600 disabled:opacity-50"
-          >
-            ✕ Cancel
-          </button>
-        )}
-      </div>
+    <CardFlashEffect active={justFilled}>
+      {({ cardClassName, badgeClassName }) => (
+        <article className={`w-full rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-transform duration-300 ${cardClassName}`}>
+          <div className="flex items-center gap-2">
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tag?.pill ?? 'bg-gray-100 text-gray-700'}`}
+            >
+              {tag?.label ?? activity.tag}
+            </span>
+            <span
+              className={`ml-auto text-xs ${countdown.urgent ? 'text-red-500 font-medium' : 'text-gray-500'}`}
+            >
+              {countdown.text}
+            </span>
+            {justFilled && (
+              <span
+                className={`ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 ${badgeClassName}`}
+              >
+                Filled just now
+              </span>
+            )}
+            {isHost && (
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="ml-2 text-xs text-gray-400 hover:text-red-600 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
 
-      <h3 className="mt-2 text-lg font-semibold text-gray-900">{activity.title}</h3>
-      <p className="mt-0.5 text-sm text-gray-500">
-        <span className="mr-1">📍</span>
-        {activity.location_label}
-      </p>
+          <h3 className="mt-2 text-lg font-semibold text-gray-900">{activity.title}</h3>
+          <div className="mt-0.5 flex items-center gap-2 text-sm text-gray-500">
+            <p className="flex items-center gap-2">
+              <span className="mr-1 text-gray-400">Location</span>
+              <span>{displayLocation}</span>
+            </p>
+            <MapActionButtons location={activity} />
+          </div>
 
-      <div className="mt-3">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-          <div
-            className={`h-full ${TAG_FILL_COLORS[activity.tag] ?? 'bg-indigo-500'}`}
-            style={{ width: `${percent}%` }}
-          />
-        </div>
-        <p className="mt-1 text-xs text-gray-500">
-          {activity.spots_joined} / {activity.spots_total} spots filled
-        </p>
-      </div>
+          <div className="mt-3">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+              <div
+                className={`h-full ${TAG_FILL_COLORS[activity.tag] ?? 'bg-indigo-500'}`}
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              {activity.spots_joined} / {activity.spots_total} spots filled
+            </p>
+          </div>
 
-      <div className="mt-3 flex justify-end">{joinButton}</div>
-    </article>
+          <div className="mt-3 flex justify-end">{joinButton}</div>
+        </article>
+      )}
+    </CardFlashEffect>
   )
 }

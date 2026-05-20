@@ -4,11 +4,13 @@
  * error, and empty states.
  */
 import { useActivities } from '../../hooks/useActivities'
+import { useActivityFilledAnimation } from '../../lib/realtime/useActivityFilledAnimation'
 import { ActivityCard } from './ActivityCard'
 import { SkeletonCard } from '../ui/SkeletonCard'
 
 export function ActivityFeed({ activeTag }) {
   const { activities, joinedActivityIds, loading, error } = useActivities()
+  const recentlyFilledActivityIds = useActivityFilledAnimation(activities)
 
   if (loading) {
     return (
@@ -23,7 +25,7 @@ export function ActivityFeed({ activeTag }) {
   if (error) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-        Could not load activities. Please refresh.
+        Could not load activities. Please refresh
       </div>
     )
   }
@@ -38,8 +40,7 @@ export function ActivityFeed({ activeTag }) {
   if (filtered.length === 0) {
     return (
       <div className="mt-16 text-center text-gray-400">
-        <p className="text-4xl">👀</p>
-        <p className="mt-2 font-medium">Nothing happening right now.</p>
+        <p className="mt-2 font-medium">Nothing happening right now</p>
         <p className="text-sm">Be the first to post something!</p>
       </div>
     )
@@ -52,6 +53,7 @@ export function ActivityFeed({ activeTag }) {
           key={a.id}
           activity={a}
           joined={joinedActivityIds.has(a.id)}
+          justFilled={recentlyFilledActivityIds.has(a.id)}
         />
       ))}
     </div>
