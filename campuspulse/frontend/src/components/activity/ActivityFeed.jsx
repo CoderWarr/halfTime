@@ -4,11 +4,13 @@
  * error, and empty states.
  */
 import { useActivities } from '../../hooks/useActivities'
+import { useActivityFilledAnimation } from '../../lib/realtime/useActivityFilledAnimation'
 import { ActivityCard } from './ActivityCard'
 import { SkeletonCard } from '../ui/SkeletonCard'
 
 export function ActivityFeed({ activeTag }) {
   const { activities, joinedActivityIds, loading, error } = useActivities()
+  const recentlyFilledActivityIds = useActivityFilledAnimation(activities)
 
   if (loading) {
     return (
@@ -51,6 +53,7 @@ export function ActivityFeed({ activeTag }) {
           key={a.id}
           activity={a}
           joined={joinedActivityIds.has(a.id)}
+          justFilled={recentlyFilledActivityIds.has(a.id)}
         />
       ))}
     </div>

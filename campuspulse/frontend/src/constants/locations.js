@@ -15,3 +15,17 @@ export const CAMPUS_LOCATIONS = [
   'Science Block',
   'Online / Discord',
 ]
+
+export const MANUAL_CAMPUS_LOCATIONS = [
+  'Village Green - Court 1',
+  'Village Green - Court 2',
+  'Village Green - Open Court',
+  'Village Green - Field',
+  'Roundhouse Food Court',
+  'Quad Food Court',
+  'Village Green Lawn',
+  'Library Lawn',
+  'Morven Brown Cafeteria',
+  'Kensington Oval',
+  'Basser Steps',
+]
